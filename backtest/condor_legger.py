@@ -169,7 +169,11 @@ class Legger:
             if dte <= P["exit_dte"]: return self.close(now, "EXPIRY_EXIT")
 
 # ---------- backtest ----------
-def load(f):
+def load(f, col="close"):
+    if f.endswith(".csv"):  # date,close[,vix] — daily closes only
+        df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
+        c = df[col].astype(float)
+        return pd.DataFrame({"open": c, "high": c, "low": c, "close": c})
     d = json.load(open(f))
     d = d.get("data", d) if isinstance(d, dict) else d
     df = pd.DataFrame(d); df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
@@ -177,7 +181,7 @@ def load(f):
 
 def backtest(a):
     cfg = INDEX[a.index]; df = trend(load(a.candles), cfg)
-    vix = load(a.vix).close.reindex(df.index, method="ffill") if a.vix else None
+    vix = load(a.vix, "vix" if a.vix.endswith(".csv") else "close").close.reindex(df.index, method="ffill") if a.vix else None
     exps = expiries(df.index[0].date(), df.index[-1].date(), cfg["weekly"])
     st = dict(spot=0.0, iv=0.13, now=None); trades = []
 
